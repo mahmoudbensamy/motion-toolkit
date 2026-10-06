@@ -25,13 +25,14 @@ Everything runs on this PC (Edge + NVENC on the GTX 1060). Nothing here modifies
 - core.js is vertical-first (W=1080, H=1920). Landscape needs layout changes in the scenes.
 - Word timestamps from the voiceover still come from the cloud step (faster-whisper) -- not moved here yet.
 
-## Setup on a new Windows PC
+## Setup on a new Windows PC (one command)
 ```
-git clone <this repo> "Motion Toolkit"
+git clone https://github.com/mahmoudbensamy/motion-toolkit "Motion Toolkit"
 cd "Motion Toolkit"
-npm install --no-audit --no-fund
-npm install ffmpeg-static --no-audit --no-fund
-mkdir bin; copy node_modules\ffmpeg-static\ffmpeg.exe bin\ffmpeg.exe
+node setup.js
 ```
-Requires Node.js and Microsoft Edge. GPU compression uses NVIDIA NVENC; without it use `--mode quality`.
+`setup.js` installs the npm dependencies, puts ffmpeg in `bin/`, checks Edge and NVIDIA NVENC, picks the worker count,
+writes a machine-specific `config.json` (git-ignored), then runs a full self-test (draft render, full render, upload copy)
+and verifies the output files. It prints `SETUP OK` or the first failure. Safe to re-run.
+Requires Node.js 18+ and Microsoft Edge. Without NVENC the compress step falls back to CPU (`--mode quality`).
 Tested on Windows with Node 24, Edge, GTX 1060. Fonts: see FONTS-NOTICE.md.

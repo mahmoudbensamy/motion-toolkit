@@ -1,4 +1,4 @@
-﻿// Render any canvas-timeline project locally, then (optionally) make the upload copy in the same run.
+// Render any canvas-timeline project locally, then (optionally) make the upload copy in the same run.
 // node render.js <projectDir> --audio mix.wav [--workers 10] [--fps 30] [--dur SEC] [--draft] [--upload 30] [--mode fast|quality]
 // Project contract: index.html exposes window.frame(t) -> JPEG dataURL and window.READY, and a duration
 // via window.DURATION (or DUR2 / DUR). Width/height are read from the globals W and H.
@@ -6,9 +6,10 @@ const path = require('path'), fs = require('fs'), { spawn } = require('child_pro
 const { chromium } = require('playwright-core');
 const { compress } = require('./compress');
 const FF = path.join(__dirname, 'bin', 'ffmpeg.exe');
+let CFG = {}; try { CFG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8').replace(/^\uFEFF/, '')); } catch (e) { }   // written by setup.js: { mode, workers }
 const a = process.argv.slice(2), g = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : d; }, has = k => a.includes('--' + k);
 const dir = path.resolve(a[0] || '.'), draft = has('draft');
-const WK = +g('workers', 10), FPS = draft ? 15 : +g('fps', 30), audioFile = path.resolve(dir, g('audio', 'mix.wav'));
+const WK = +g('workers', CFG.workers || 10), FPS = draft ? 15 : +g('fps', 30), audioFile = path.resolve(dir, g('audio', 'mix.wav'));
 const name = path.basename(dir), log = s => { fs.appendFileSync(path.join(dir, 'progress.log'), s + '\n'); console.log(s); };
 const url = 'file:///' + path.join(dir, 'index.html').replace(/\\/g, '/');
 
@@ -43,5 +44,5 @@ async function worker(i, a0, b0, seg, st, prog) {
   const out = path.join(dir, `${name}${draft ? '_DRAFT' : ''}.mp4`);   // master: new name each project, never overwrites another project's file
   await new Promise((res, rej) => spawn(FF, ['-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', path.join(dir, 'list.txt'), '-i', audioFile, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', out], { stdio: 'inherit' }).on('close', c => c ? rej(new Error('mux failed')) : res()));
   segs.forEach(s => fs.unlinkSync(s)); log(`MASTER ${out} ${(fs.statSync(out).size / 1048576).toFixed(0)} MB  (${((Date.now() - st) / 1000).toFixed(0)}s)`);
-  if (has('upload') && !draft) { const r = compress(out, { mb: +g('upload', 30), mode: g('mode', 'fast'), width: +g('width', 0) }); log(`UPLOAD ${r.out} ${r.size.toFixed(1)} MB  (total ${((Date.now() - st) / 1000).toFixed(0)}s)`); }
+  if (has('upload') && !draft) { const r = compress(out, { mb: +g('upload', 30), mode: g('mode', CFG.mode || 'fast'), width: +g('width', 0) }); log(`UPLOAD ${r.out} ${r.size.toFixed(1)} MB  (total ${((Date.now() - st) / 1000).toFixed(0)}s)`); }
 })().catch(e => { console.error(e); process.exit(1); });

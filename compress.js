@@ -1,4 +1,4 @@
-﻿// Make a size-capped upload copy. The original is NEVER touched or overwritten.
+// Make a size-capped upload copy. The original is NEVER touched or overwritten.
 // node compress.js <input.mp4> [--mb 30] [--mode fast|quality] [--width 720] [--out file.mp4]
 //   fast    = GPU (NVENC) single pass, native resolution unless --width is given (~80s for 5 min)
 //   quality = CPU x264 two-pass (slower, ~3.5 min for 5 min)
@@ -6,6 +6,7 @@
 // tunes the bitrate both ways and keeps the biggest (= best-looking) result that still fits the cap.
 const path = require('path'), fs = require('fs'), { spawnSync } = require('child_process');
 const FF = path.join(__dirname, 'bin', 'ffmpeg.exe');
+let CFG = {}; try { CFG = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8').replace(/^\uFEFF/, '')); } catch (e) { }   // written by setup.js: { mode, workers }
 
 function duration(file) {
   const r = spawnSync(FF, ['-hide_banner', '-i', file], { encoding: 'utf8' });
@@ -31,7 +32,7 @@ function encode(input, tmp, vK, mode, vf, aud) {
   }
 }
 function compress(input, o = {}) {
-  const cap = o.mb || 30, mode = o.mode || 'fast', audioK = 80;
+  const cap = o.mb || 30, mode = o.mode || CFG.mode || 'fast', audioK = 80;
   const out = o.out || input.replace(/\.mp4$/i, '') + '_upload.mp4', tmp = out.replace(/\.mp4$/i, '') + '.tmp.mp4';
   if (path.resolve(out) === path.resolve(input)) throw new Error('refusing to overwrite the original');
   if (mb(input) <= cap) { fs.copyFileSync(input, out); console.log('already under the cap, copied as is'); return { out, size: mb(out), vK: 0, attempt: 0 }; }

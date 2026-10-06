@@ -8,3 +8,4 @@ tests/
 progress.log
 list.txt
 seg_*.mp4
+config.json
