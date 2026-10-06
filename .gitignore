@@ -1,0 +1,10 @@
+node_modules/
+bin/
+projects/
+tests/
+*.mp4
+*.wav
+*.m4a
+progress.log
+list.txt
+seg_*.mp4
