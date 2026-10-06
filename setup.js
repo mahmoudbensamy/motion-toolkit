@@ -9,7 +9,9 @@ const fs = require('fs'), path = require('path'), os = require('os'), { spawnSyn
 const root = __dirname, FF = path.join(root, 'bin', 'ffmpeg.exe'), warn = [];
 const say = (t, m) => console.log(t.padEnd(5) + m);
 const fatal = m => { say('FAIL', m); console.log('\nSETUP FAILED'); process.exit(1); };
-const run = (cmd, args, opt = {}) => spawnSync(cmd, args, { cwd: root, encoding: 'utf8', shell: opt.shell, stdio: opt.inherit ? 'inherit' : 'pipe' });
+const run = (cmd, args, opt = {}) => opt.shell
+  ? spawnSync([cmd, ...args].join(' '), { cwd: root, encoding: 'utf8', shell: true })   // single string: no Node DEP0190 warning
+  : spawnSync(cmd, args, { cwd: root, encoding: 'utf8' });
 
 if (process.platform !== 'win32') { warn.push('not Windows: scripts use bin\\ffmpeg.exe, NUL and Edge; expect to adapt (see README)'); say('WARN', warn[0]); }
 const major = +process.versions.node.split('.')[0]; if (major < 18) fatal('Node 18+ required, found ' + process.versions.node);
@@ -28,8 +30,10 @@ if (!fs.existsSync(FF)) {
 r = run(FF, ['-hide_banner', '-version']); if (r.status !== 0) fatal('bin/ffmpeg.exe does not run');
 say('OK', r.stdout.split('\n')[0]);
 
-const edge = [process.env['ProgramFiles(x86)'], process.env.ProgramFiles, process.env.LOCALAPPDATA].filter(Boolean).map(p => path.join(p, 'Microsoft', 'Edge', 'Application', 'msedge.exe')).find(fs.existsSync);
-if (edge) say('OK', 'Microsoft Edge found'); else { warn.push('Edge not found: install Edge, or change channel in render.js to "chrome"'); say('WARN', warn[warn.length - 1]); }
+const regHit = k => run('reg', ['query', k, '/ve']).status === 0;
+const edge = regHit('HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\msedge.exe') || regHit('HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\msedge.exe')
+  || [process.env['ProgramFiles(x86)'], process.env.ProgramFiles, process.env.LOCALAPPDATA].filter(Boolean).map(p => path.join(p, 'Microsoft', 'Edge', 'Application', 'msedge.exe')).some(fs.existsSync);
+say(edge ? 'OK' : 'NOTE', edge ? 'Microsoft Edge found' : 'Edge not detected by registry/path; the smoke test below is the real check (if it fails, install Edge or set channel "chrome" in render.js)');
 
 r = run(FF, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=1080x1920:rate=30', '-t', '2', '-c:v', 'h264_nvenc', '-b:v', '1M', '-f', 'null', '-']);
 const gpu = r.status === 0, mode = gpu ? 'fast' : 'quality';
